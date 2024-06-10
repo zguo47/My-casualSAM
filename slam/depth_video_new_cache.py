@@ -14,7 +14,14 @@ from third_party.raft import load_RAFT, get_input_padder
 from util.util_3dvideo import save_ply, depth_to_points_Rt, Video_3D_Webpage
 from networks.MiDaS import MidasNet, MidasNet_featopt
 from configs import midas_pretrain_path
-from networks.goem_opt import _so3_exp_map, CameraPoseDeltaCollection, DepthScaleShiftCollection, DepthBasedWarping, CameraIntrinsics, get_relative_transform
+from networks.goem_opt import (
+    _so3_exp_map,
+    CameraPoseDeltaCollection,
+    DepthScaleShiftCollection,
+    DepthBasedWarping,
+    CameraIntrinsics,
+    get_relative_transform,
+)
 from skimage.transform import resize as imresize
 from tqdm import tqdm
 from slam.util_misc import Timer, ResultCache, KeyFrameBuffer
@@ -25,30 +32,32 @@ from slam.models.cache import FeatListCache
 
 
 def get_video_dataset(opt):
-    if opt.dataset_name == 'davis':
+    if opt.dataset_name == "davis":
         return DavisVideoDataset(opt)
-    elif opt.dataset_name == 'sintel':
+    elif opt.dataset_name == "sintel":
         return SintelVideoDataset(opt)
-    elif opt.dataset_name == 'tum':
+    elif opt.dataset_name == "tum":
         return TUMVideoDataset(opt)
-    elif opt.dataset_name == 'tum_static':
+    elif opt.dataset_name == "tum_static":
         return StaticTUMVideoDataset(opt)
-    elif opt.dataset_name == 'davis_local':
+    elif opt.dataset_name == "davis_local":
         return DavisLocalVideoDataset(opt)
     else:
         raise NotImplementedError(
-            f'dataset name only support davis and sintel. Got {opt.dataset_name} instead')
+            f"dataset name only support davis and sintel. Got {opt.dataset_name} instead"
+        )
 
 
 class DepthVideoDataset(ABC):
     def __init__(self) -> None:
         pass
+
     # fuctions related to initialization
 
     def initialize(self, opt):
         self.opt = opt
         self.get_paths(opt)
-        if hasattr(opt, 'eval_only'):
+        if hasattr(opt, "eval_only"):
             if opt.eval_only:
                 self.initialize_eval()
                 return
@@ -66,23 +75,26 @@ class DepthVideoDataset(ABC):
         else:
             W_max = max_width
         H_original, W_original = self.original_shape
-        aspc = W_original/H_original
+        aspc = W_original / H_original
         W_output = min(W_original, W_max)
-        W_output = (W_output//multiple)*multiple
-        H_output = ((W_output/aspc)//multiple)*multiple
+        W_output = (W_output // multiple) * multiple
+        H_output = ((W_output / aspc) // multiple) * multiple
         return int(H_output), int(W_output)
 
     def load_checkpoint(self, path):
-        self.depth_net.load_state_dict(torch.load(join(path, 'depth_net.pth')))
-        if os.path.exists(join(path, 'uncertainty_net.pth')):
+        self.depth_net.load_state_dict(torch.load(join(path, "depth_net.pth")))
+        if os.path.exists(join(path, "uncertainty_net.pth")):
             self.uncertainty_net.load_state_dict(
-                torch.load(join(path, 'uncertainty_net.pth')))
-        self.poses.load_state_dict(torch.load(join(path, 'poses.pth')))
+                torch.load(join(path, "uncertainty_net.pth"))
+            )
+        self.poses.load_state_dict(torch.load(join(path, "poses.pth")))
         self.scale_and_shift.load_state_dict(
-            torch.load(join(path, 'scale_and_shift.pth')))
-        if hasattr(self, 'camera_intrinsics'):
+            torch.load(join(path, "scale_and_shift.pth"))
+        )
+        if hasattr(self, "camera_intrinsics"):
             self.camera_intrinsics.load_state_dict(
-                torch.load(join(path, 'camera_intrinsics.pth')))
+                torch.load(join(path, "camera_intrinsics.pth"))
+            )
         self.depth_net.eval()
 
     @abstractmethod
@@ -91,15 +103,19 @@ class DepthVideoDataset(ABC):
 
     def init_cache(self):
         self.flow_cache = ResultCache(
-            max_cache_length=self.opt.cache_length, enable_cpu=False)
+            max_cache_length=self.opt.cache_length, enable_cpu=False
+        )
         self.flow_mask_cache = ResultCache(
-            max_cache_length=self.opt.cache_length, enable_cpu=False)
+            max_cache_length=self.opt.cache_length, enable_cpu=False
+        )
         self.depth_cache = ResultCache(max_cache_length=self.opt.cache_length)
         self.mask_cache = ResultCache(max_cache_length=self.opt.cache_length)
         self.depthfeat_cache = FeatListCache(
-            number_of_frames=self.number_of_frames, list_size=4)
+            number_of_frames=self.number_of_frames, list_size=4
+        )
         self.uncertainfeat_cache = FeatListCache(
-            number_of_frames=self.number_of_frames, list_size=4)
+            number_of_frames=self.number_of_frames, list_size=4
+        )
 
     def clear_flow_cache(self):
         del self.flow_cache
@@ -125,15 +141,18 @@ class DepthVideoDataset(ABC):
         # pose, depth_scale, depth_net and flow_net
         self.poses = CameraPoseDeltaCollection(self.number_of_frames)
         self.scale_and_shift = DepthScaleShiftCollection(
-            self.number_of_frames, use_inverse=self.opt.use_inverse_scale, grid_size=self.opt.scale_grid_size)
+            self.number_of_frames,
+            use_inverse=self.opt.use_inverse_scale,
+            grid_size=self.opt.scale_grid_size,
+        )
         self.scale_and_shift.set_outputshape(self.opt_shape)
-        if self.opt.depth_net == 'midas':
-            self.depth_net = MidasNet(path=midas_pretrain_path,
-                                      normalize_input=True)
+        if self.opt.depth_net == "midas":
+            self.depth_net = MidasNet(path=midas_pretrain_path, normalize_input=True)
 
-        elif self.opt.depth_net == 'midas_feat_opt':
-            self.depth_net = MidasNet_featopt(path=midas_pretrain_path,
-                                              normalize_input=True)
+        elif self.opt.depth_net == "midas_feat_opt":
+            self.depth_net = MidasNet_featopt(
+                path=midas_pretrain_path, normalize_input=True
+            )
             self.depth_net.add_refine_branch()
         else:
             raise NotImplementedError
@@ -142,17 +161,19 @@ class DepthVideoDataset(ABC):
             # self.uncertainty_net = HRNetUncertaintyModel(
             #    output_shape=self.opt_shape)  # .eval()
             self.uncertainty_net = MidasUnceratintyModel(
-                output_channel=self.opt.uncertainty_channels, constant_uncertainty=self.opt.use_constant_uncertainty)
+                output_channel=self.opt.uncertainty_channels,
+                constant_uncertainty=self.opt.use_constant_uncertainty,
+            )
         self.flow_net = load_RAFT()
         self.flow_net = self.flow_net.eval()
         self.get_valid_flow_mask = OccMask(th=1.0)
         self.camera_intrinsics = CameraIntrinsics(
-            init_focal_length=self.opt.init_focal_length)
-        self.camera_intrinsics.register_shape(
-            self.original_shape, self.opt_shape)
+            init_focal_length=self.opt.init_focal_length
+        )
+        self.camera_intrinsics.register_shape(self.original_shape, self.opt_shape)
 
     def cuda(self, cache_data=False):
-        self.to('cuda', cache_data)
+        self.to("cuda", cache_data)
 
     def to(self, device, cache_data=False):
         self.poses = self.poses.to(device)
@@ -164,7 +185,7 @@ class DepthVideoDataset(ABC):
         self.uncertainty_net = self.uncertainty_net.to(device)
         self.device = device
 
-        if hasattr(self, 'K'):
+        if hasattr(self, "K"):
             self.K = self.K.to(device)
             self.inv_K = torch.linalg.inv(self.K)
 
@@ -175,14 +196,13 @@ class DepthVideoDataset(ABC):
             self.images_orig = self.images_orig.to(device)
 
     def reload_depth_net(self):
-        self.depth_net = MidasNet(path=midas_pretrain_path,
-                                  normalize_input=True)
+        self.depth_net = MidasNet(path=midas_pretrain_path, normalize_input=True)
         self.depth_net.to(self.device)
         self.depth_net = self.depth_net.eval()
         self.reset_optimizer()
 
     def init_depth_optimizer(self):
-        if self.opt.depth_net == 'midas':
+        if self.opt.depth_net == "midas":
             optimization_layers = self.opt.optimization_layers
             for p in self.depth_net.parameters():
                 p.requires_grad = False
@@ -191,31 +211,41 @@ class DepthVideoDataset(ABC):
                     p.requires_grad = True
             optimization_param = []
             for l in optimization_layers:
-                optimization_param += list(getattr(self.depth_net.scratch,
-                                                   l).parameters())
+                optimization_param += list(
+                    getattr(self.depth_net.scratch, l).parameters()
+                )
             self.depth_optimizer = torch.optim.Adam(
-                optimization_param, lr=self.opt.depth_lr)
-        elif self.opt.depth_net == 'midas_feat_opt':
+                optimization_param, lr=self.opt.depth_lr
+            )
+        elif self.opt.depth_net == "midas_feat_opt":
             for p in self.depth_net.parameters():
                 p.requires_grad = False
             for p in self.depth_net.refine_branch.parameters():
                 p.requires_grad = True
             self.depth_optimizer = torch.optim.Adam(
-                self.depth_net.refine_branch.parameters(),
-                lr=self.opt.depth_lr)
+                self.depth_net.refine_branch.parameters(), lr=self.opt.depth_lr
+            )
         else:
             raise NotImplementedError
 
     def init_pose_optimizer(self):
-        rotation_params, translation_params = self.poses.get_rotation_and_translation_params()
+        rotation_params, translation_params = (
+            self.poses.get_rotation_and_translation_params()
+        )
         self.rotation_optimizer = torch.optim.Adam(
-            rotation_params, lr=self.opt.rotation_lr, weight_decay=0, amsgrad=True)
+            rotation_params, lr=self.opt.rotation_lr, weight_decay=0, amsgrad=True
+        )
         self.translation_optimizer = torch.optim.Adam(
-            translation_params, lr=self.opt.translation_lr, weight_decay=0, amsgrad=True)
+            translation_params, lr=self.opt.translation_lr, weight_decay=0, amsgrad=True
+        )
 
     def init_scale_optimizer(self):
         self.scale_and_shift_optimizer = torch.optim.Adam(
-            self.scale_and_shift.parameters(), lr=self.opt.scale_lr, weight_decay=0, amsgrad=True)
+            self.scale_and_shift.parameters(),
+            lr=self.opt.scale_lr,
+            weight_decay=0,
+            amsgrad=True,
+        )
 
     def init_uncertainty_optimizer(self):
         for p in self.uncertainty_net.parameters():
@@ -224,11 +254,17 @@ class DepthVideoDataset(ABC):
             for p in self.uncertainty_net.uncertainty_decoder.parameters():
                 p.requires_grad = True
             self.uncertainty_optimizer = torch.optim.Adam(
-                self.uncertainty_net.uncertainty_decoder.parameters(), lr=self.opt.uncertainty_lr)
+                self.uncertainty_net.uncertainty_decoder.parameters(),
+                lr=self.opt.uncertainty_lr,
+            )
 
     def init_intrinsics_optimizer(self):
         self.intrinsics_optimizer = torch.optim.Adam(
-            self.camera_intrinsics.parameters(), lr=self.opt.intrinsics_lr, weight_decay=0, amsgrad=True)
+            self.camera_intrinsics.parameters(),
+            lr=self.opt.intrinsics_lr,
+            weight_decay=0,
+            amsgrad=True,
+        )
 
     def init_optimizer(self):
         self.active_optimizers = []
@@ -262,8 +298,10 @@ class DepthVideoDataset(ABC):
             # pdb.set_trace()
             self.initial_depth = []
             frame_range = list(range(self.number_of_frames))
-            chuncks = [frame_range[i:i+batch_size]
-                       for i in range(0, len(frame_range), batch_size)]
+            chuncks = [
+                frame_range[i : i + batch_size]
+                for i in range(0, len(frame_range), batch_size)
+            ]
             for chunk in chuncks:
                 imgs = self.images[chunk, ...]
                 feats = self.depth_net.forward_backbone(imgs)
@@ -276,8 +314,10 @@ class DepthVideoDataset(ABC):
     def store_initial_uncertainty_feat(self, batch_size=10):
         with torch.no_grad():
             frame_range = list(range(self.number_of_frames))
-            chuncks = [frame_range[i:i+batch_size]
-                       for i in range(0, len(frame_range), batch_size)]
+            chuncks = [
+                frame_range[i : i + batch_size]
+                for i in range(0, len(frame_range), batch_size)
+            ]
             for chunk in chuncks:
                 imgs = self.images[chunk, ...]
                 feats = self.uncertainty_net.get_uncertainty_feat(imgs)
@@ -290,7 +330,8 @@ class DepthVideoDataset(ABC):
                 frame_list = list(range(self.number_of_frames))
             R, t = self.poses(frame_list)
             relative_R, relative_t = get_relative_transform(
-                R[:-1, ...], t[:-1, ...], R[1:, ...], t[1:, ...])
+                R[:-1, ...], t[:-1, ...], R[1:, ...], t[1:, ...]
+            )
             self.relative_R = relative_R.detach().clone()
             self.relative_t = relative_t.detach().clone()
 
@@ -299,7 +340,8 @@ class DepthVideoDataset(ABC):
             frame_list = list(range(self.number_of_frames))
         R, t = self.poses(frame_list)
         relative_R, relative_t = get_relative_transform(
-            R[:-1, ...], t[:-1, ...], R[1:, ...], t[1:, ...])
+            R[:-1, ...], t[:-1, ...], R[1:, ...], t[1:, ...]
+        )
         return relative_R, relative_t
 
     def predict_depth(self, frame_index_list, no_grad=False):
@@ -317,17 +359,18 @@ class DepthVideoDataset(ABC):
 
     def predict_depth_with_uncertainty(self, frame_index_list, no_depth_grad=False):
         if type(frame_index_list) is not torch.Tensor:
-            index_list_cuda = torch.LongTensor(
-                frame_index_list).to(self.device)
-            depth = self.depth_net.forward_refine(
-                self.depthfeat_cache[index_list_cuda])
+            index_list_cuda = torch.LongTensor(frame_index_list).to(self.device)
+            depth = self.depth_net.forward_refine(self.depthfeat_cache[index_list_cuda])
             uncetrainty = self.uncertainty_net(
-                self.uncertainfeat_cache[index_list_cuda])
+                self.uncertainfeat_cache[index_list_cuda]
+            )
         else:
             depth = self.depth_net.forward_refine(
-                self.depthfeat_cache[frame_index_list])
+                self.depthfeat_cache[frame_index_list]
+            )
             uncetrainty = self.uncertainty_net(
-                self.uncertainfeat_cache[frame_index_list])
+                self.uncertainfeat_cache[frame_index_list]
+            )
         return depth, uncetrainty
 
     # def predict_depth_with_cache(self, frame_index_list):
@@ -344,20 +387,25 @@ class DepthVideoDataset(ABC):
     #     return torch.cat(out, dim=0)
 
     def predict_flow_with_cache(self, frame_pair):
-        if not hasattr(self, 'flow_resize_scale'):
+        if not hasattr(self, "flow_resize_scale"):
             output_H, output_W = self.output_shape
             opt_H, opt_W = self.opt_shape
-            self.flow_resize_scale = [opt_H/output_H, opt_W/output_W]
+            self.flow_resize_scale = [opt_H / output_H, opt_W / output_W]
         scale_H, scale_W = self.flow_resize_scale
 
         i, j = frame_pair
         v = self.flow_cache.get_item((i, j))
         if v is None:
             with torch.no_grad():
-                v = self.flow_net(image1=self.images_orig[i:i+1, ...].to(
-                    self.device)*255, image2=self.images_orig[j:j+1, ...].to(self.device)*255, iters=20, test_mode=True)[1]
-                v = interpolate(v, size=self.opt_shape,
-                                mode='bilinear', align_corners=True)
+                v = self.flow_net(
+                    image1=self.images_orig[i : i + 1, ...].to(self.device) * 255,
+                    image2=self.images_orig[j : j + 1, ...].to(self.device) * 255,
+                    iters=20,
+                    test_mode=True,
+                )[1]
+                v = interpolate(
+                    v, size=self.opt_shape, mode="bilinear", align_corners=True
+                )
                 v[:, 0, ...] *= scale_W  # x
                 v[:, 1, ...] *= scale_H  # y
             self.flow_cache.add_item((i, j), v)
@@ -380,33 +428,30 @@ class DepthVideoDataset(ABC):
         return v_i_j, v_j_i
 
     def get_mask_with_cache(self, i):
-        return self.masks[i:i+1, ...].to(self.device)
+        return self.masks[i : i + 1, ...].to(self.device)
 
     def freeze_frame(self, frame_index, scale_only=False, pose_only=False):
         if scale_only:
-            pos_param = getattr(self.poses, f'delta_rotation_{frame_index}')
+            pos_param = getattr(self.poses, f"delta_rotation_{frame_index}")
             pos_param.requires_grad = False
-            trans_param = getattr(
-                self.poses, f'delta_translation_{frame_index}')
+            trans_param = getattr(self.poses, f"delta_translation_{frame_index}")
             trans_param.requires_grad = False
         if pose_only:
-            scale_param = getattr(self.scale_and_shift, f'scale_{frame_index}')
+            scale_param = getattr(self.scale_and_shift, f"scale_{frame_index}")
         else:
-            pos_param = getattr(self.poses, f'delta_rotation_{frame_index}')
+            pos_param = getattr(self.poses, f"delta_rotation_{frame_index}")
             pos_param.requires_grad = False
-            trans_param = getattr(
-                self.poses, f'delta_translation_{frame_index}')
+            trans_param = getattr(self.poses, f"delta_translation_{frame_index}")
             trans_param.requires_grad = False
-            scale_param = getattr(self.scale_and_shift, f'scale_{frame_index}')
+            scale_param = getattr(self.scale_and_shift, f"scale_{frame_index}")
 
     def unfreeze_frame(self, frame_index, opt_scale=False):
-        pos_param = getattr(self.poses, f'delta_rotation_{frame_index}')
+        pos_param = getattr(self.poses, f"delta_rotation_{frame_index}")
         pos_param.requires_grad = True
-        trans_param = getattr(
-            self.poses, f'delta_translation_{frame_index}')
+        trans_param = getattr(self.poses, f"delta_translation_{frame_index}")
         trans_param.requires_grad = True
         if opt_scale:
-            scale_param = getattr(self.scale_and_shift, f'scale_{frame_index}')
+            scale_param = getattr(self.scale_and_shift, f"scale_{frame_index}")
             scale_param.requires_grad = True
 
 
@@ -422,22 +467,28 @@ class SintelVideoDataset(DepthVideoDataset):
     def get_paths(self, opt):
         track_name = opt.track_name
         self.paths = {}
-        sintel_cam_path, sintel_depth_path, sintel_flow_path, sintel_seg_path, sintel_img_path, number_of_frames = util_sintel_io.get_path(
-            track_name=track_name)
-        self.paths['cam'] = sintel_cam_path
-        self.paths['depth'] = sintel_depth_path
-        self.paths['seg'] = sintel_seg_path
-        self.paths['img'] = sintel_img_path
+        (
+            sintel_cam_path,
+            sintel_depth_path,
+            sintel_flow_path,
+            sintel_seg_path,
+            sintel_img_path,
+            number_of_frames,
+        ) = util_sintel_io.get_path(track_name=track_name)
+        self.paths["cam"] = sintel_cam_path
+        self.paths["depth"] = sintel_depth_path
+        self.paths["seg"] = sintel_seg_path
+        self.paths["img"] = sintel_img_path
         self.number_of_frames = number_of_frames
 
     def initialize_eval(self):
         i = 1
-        img = util_sintel_io.img_read(
-            join(self.paths['img'], f'frame_{i:04d}.png'))
-        if not hasattr(self, 'original_shape'):
+        img = util_sintel_io.img_read(join(self.paths["img"], f"frame_{i:04d}.png"))
+        if not hasattr(self, "original_shape"):
             self.original_shape = img.shape[:2]
             H_output, W_output = self.get_output_shape(
-                multiple=64, max_width=self.opt.max_width)
+                multiple=64, max_width=self.opt.max_width
+            )
             self.output_shape = (H_output, W_output)
         self.read_intrinsics()
         self.read_gt_info()
@@ -447,77 +498,84 @@ class SintelVideoDataset(DepthVideoDataset):
         self.images_orig = []
         self.masks = []
         if self.opt.frame_cap is not None:
-            self.number_of_frames = min(
-                self.opt.frame_cap, self.number_of_frames)
-        for i in range(1, self.number_of_frames+1, self.opt.image_sequence_stride):
-            img = util_sintel_io.img_read(
-                join(self.paths['img'], f'frame_{i:04d}.png'))
-            if not hasattr(self, 'original_shape'):
+            self.number_of_frames = min(self.opt.frame_cap, self.number_of_frames)
+        for i in range(1, self.number_of_frames + 1, self.opt.image_sequence_stride):
+            img = util_sintel_io.img_read(join(self.paths["img"], f"frame_{i:04d}.png"))
+            if not hasattr(self, "original_shape"):
                 self.original_shape = img.shape[:2]
                 H_output, W_output = self.get_output_shape(
-                    multiple=64, max_width=self.opt.max_width)
+                    multiple=64, max_width=self.opt.max_width
+                )
                 self.output_shape = (H_output, W_output)
                 H_opt, W_opt = self.get_output_shape(
-                    multiple=32, max_width=self.opt.max_width_opt)
+                    multiple=32, max_width=self.opt.max_width_opt
+                )
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img, (H_opt, W_opt),
-                           preserve_range=True).astype(np.float)
-            img_orig = imresize(img, (H_output, W_output),
-                                preserve_range=True).astype(np.float)
+            img = imresize(img, (H_opt, W_opt), preserve_range=True).astype(np.float)
+            img_orig = imresize(img, (H_output, W_output), preserve_range=True).astype(
+                np.float
+            )
             self.images.append(img)
             self.images_orig.append(img_orig)
-        for i in range(1, self.number_of_frames+1):
+        for i in range(1, self.number_of_frames + 1):
             if self.opt.not_load_mask:
                 seg = np.ones([H_opt, W_opt], dtype=np.float)
             else:
                 seg = util_sintel_io.seg_read(
-                    join(self.paths['seg'], f'frame_{i:04d}.png'))
-                seg = 1-seg
-                seg = imresize(seg, (H_opt, W_opt),
-                               preserve_range=True).astype(np.float)
+                    join(self.paths["seg"], f"frame_{i:04d}.png")
+                )
+                seg = 1 - seg
+                seg = imresize(seg, (H_opt, W_opt), preserve_range=True).astype(
+                    np.float
+                )
                 seg = np.where(seg > 0.99, 1, 0)
             self.masks.append(seg[None, ...])
         self.images = np.stack(self.images, axis=0)
-        self.images = torch.from_numpy(self.images).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images = (
+            torch.from_numpy(self.images).permute([0, 3, 1, 2]).float().pin_memory()
+        )
         self.images_orig = np.stack(self.images_orig, axis=0)
-        self.images_orig = torch.from_numpy(self.images_orig).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images_orig = (
+            torch.from_numpy(self.images_orig)
+            .permute([0, 3, 1, 2])
+            .float()
+            .pin_memory()
+        )
         self.masks = np.stack(self.masks, axis=0)
         self.masks = torch.from_numpy(self.masks).float().pin_memory()
         self.number_of_frames = len(self.images)
 
     def read_intrinsics(self):
-        print('reading intrinsics....')
-        cam = util_sintel_io.cam_read(
-            join(self.paths['cam'], f'frame_0001.cam'))
+        print("reading intrinsics....")
+        cam = util_sintel_io.cam_read(join(self.paths["cam"], f"frame_0001.cam"))
         K, R, t = util_sintel_io.process_sintel_cam(cam)
         self.K = K
         H_opt, W_opt = self.opt_shape
         H, W = self.original_shape
-        self.K[0, :] *= W_opt/W
-        self.K[1, :] *= H_opt/H
-        print('intrinsics loaded:')
+        self.K[0, :] *= W_opt / W
+        self.K[1, :] *= H_opt / H
+        print("intrinsics loaded:")
         print(self.K)
         self.K = torch.from_numpy(self.K[None, ...]).float().pin_memory()
 
     def read_gt_info(self):
-        print('reading gt info')
+        print("reading gt info")
         self.R_gt = []
         self.t_gt = []
         self.depth_gt = []
         H_output, W_output = self.output_shape
-        for i in range(1, self.number_of_frames+1):
+        for i in range(1, self.number_of_frames + 1):
             depth = util_sintel_io.depth_read(
-                join(self.paths['depth'], f'frame_{i:04d}.dpt'))
-            depth = imresize(depth, (H_output, W_output),
-                             preserve_range=True).astype(np.float)
+                join(self.paths["depth"], f"frame_{i:04d}.dpt")
+            )
+            depth = imresize(depth, (H_output, W_output), preserve_range=True).astype(
+                np.float
+            )
             self.depth_gt.append(depth)
-        for i in range(1, self.number_of_frames+1):
-            cam = util_sintel_io.cam_read(
-                join(self.paths['cam'], f'frame_{i:04d}.cam'))
+        for i in range(1, self.number_of_frames + 1):
+            cam = util_sintel_io.cam_read(join(self.paths["cam"], f"frame_{i:04d}.cam"))
             K, R, t = util_sintel_io.process_sintel_cam(cam)
             self.R_gt.append(R)
             self.t_gt.append(t)
@@ -527,9 +585,10 @@ class SintelVideoDataset(DepthVideoDataset):
         self.depth_gt = np.stack(self.depth_gt, axis=0)
         self.R_gt = torch.from_numpy(self.R_gt).float().pin_memory()
         self.t_gt = torch.from_numpy(self.t_gt).float().pin_memory()
-        self.depth_gt = torch.from_numpy(
-            self.depth_gt[:, None, ...]).float().pin_memory()
-        print('done')
+        self.depth_gt = (
+            torch.from_numpy(self.depth_gt[:, None, ...]).float().pin_memory()
+        )
+        print("done")
 
 
 class DavisLocalVideoDataset(DepthVideoDataset):
@@ -545,50 +604,63 @@ class DavisLocalVideoDataset(DepthVideoDataset):
         track_name = opt.track_name
         data_list_root = "/mnt/localssd1/ztzhang/davis/JPEGImages/Full-Resolution"
         mask_root = "/mnt/localssd1/ztzhang/davis/Annotations/Full-Resolution"
-        image_path = join(data_list_root, f'{track_name}')
-        self.paths = {'image_path': image_path,
-                      'mask_path': join(mask_root, f'{track_name}')}
+        image_path = join(data_list_root, f"{track_name}")
+        self.paths = {
+            "image_path": image_path,
+            "mask_path": join(mask_root, f"{track_name}"),
+        }
 
     def read_images(self):
-        print('reading images...')
-        img_path = self.paths['image_path']
-        image_paths = sorted(glob(join(img_path, '*.jpg')))
+        print("reading images...")
+        img_path = self.paths["image_path"]
+        image_paths = sorted(glob(join(img_path, "*.jpg")))
         if len(image_paths) == 0:
-            image_paths = sorted(glob(join(img_path, '*.png')))
-        image_paths = image_paths[::self.opt.image_sequence_stride]
-        image_paths = image_paths[:self.opt.frame_cap]
+            image_paths = sorted(glob(join(img_path, "*.png")))
+        image_paths = image_paths[:: self.opt.image_sequence_stride]
+        image_paths = image_paths[: self.opt.frame_cap]
         self.images = []
         self.images_orig = []
         for img_path in tqdm(image_paths):
-            img_raw = np.asarray(Image.open(
-                img_path).convert('RGB')).astype(np.float)/255
-            if not hasattr(self, 'original_shape'):
+            img_raw = (
+                np.asarray(Image.open(img_path).convert("RGB")).astype(np.float) / 255
+            )
+            if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
                 H_output, W_output = self.get_output_shape(
-                    multiple=64, max_width=self.opt.max_width)
+                    multiple=64, max_width=self.opt.max_width
+                )
                 self.output_shape = (H_output, W_output)
                 H_opt, W_opt = self.get_output_shape(
-                    multiple=32, max_width=self.opt.max_width_opt)
+                    multiple=32, max_width=self.opt.max_width_opt
+                )
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt),
-                           preserve_range=True).astype(np.float)
-            img_orig = imresize(img_raw, (H_output, W_output),
-                                preserve_range=True).astype(np.float)
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
+                np.float
+            )
+            img_orig = imresize(
+                img_raw, (H_output, W_output), preserve_range=True
+            ).astype(np.float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
         self.images = np.stack(self.images, axis=0)
-        self.images = torch.from_numpy(self.images).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images = (
+            torch.from_numpy(self.images).permute([0, 3, 1, 2]).float().pin_memory()
+        )
         self.images_orig = np.stack(self.images_orig, axis=0)
-        self.images_orig = torch.from_numpy(self.images_orig).permute(
-            [0, 3, 1, 2]).float().pin_memory()
-        self.masks = torch.ones(
-            [self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        self.images_orig = (
+            torch.from_numpy(self.images_orig)
+            .permute([0, 3, 1, 2])
+            .float()
+            .pin_memory()
+        )
+        self.masks = (
+            torch.ones([self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        )
 
-        print('done.')
+        print("done.")
 
     def read_intrinsics(self):
         pass
@@ -597,22 +669,25 @@ class DavisLocalVideoDataset(DepthVideoDataset):
         if self.opt.not_load_mask:
             return
         else:
-            print('reading gt info...')
+            print("reading gt info...")
             self.masks = []
-            mask_paths = sorted(glob(join(self.paths['mask_path'], '*.png')))
-            mask_paths = mask_paths[::self.opt.image_sequence_stride]
+            mask_paths = sorted(glob(join(self.paths["mask_path"], "*.png")))
+            mask_paths = mask_paths[:: self.opt.image_sequence_stride]
             for mask_path in mask_paths:
-                mask = np.asarray(Image.open(
-                    mask_path).convert('L')).astype(np.float)/255
-                mask = imresize(mask, self.opt_shape,
-                                preserve_range=True).astype(np.float)
+                mask = (
+                    np.asarray(Image.open(mask_path).convert("L")).astype(np.float)
+                    / 255
+                )
+                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(
+                    np.float
+                )
                 mask = np.where(mask > 0.001, 1, 0)
-                mask = 1-mask
+                mask = 1 - mask
                 mask = torch.from_numpy(mask[None, ...]).float().pin_memory()
                 self.masks.append(mask)
             self.masks = np.stack(self.masks, axis=0)
             self.masks = torch.from_numpy(self.masks).float().pin_memory()
-            print('done.')
+            print("done.")
         # print('reading gt info')
         # depth_and_pose_path = self.paths['depth_and_pose_paths']
         # self.R_gt = []
@@ -649,52 +724,65 @@ class DavisVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        data_list_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/JPEGImages/Full-Resolution"
-        mask_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/Annotations/Full-Resolution"
-        image_path = join(data_list_root, f'{track_name}')
-        self.paths = {'image_path': image_path,
-                      'mask_path': join(mask_root, f'{track_name}')}
+        data_list_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/JPEGImages/480p"
+        mask_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/Annotations/480p"
+        image_path = join(data_list_root, f"{track_name}")
+        self.paths = {
+            "image_path": image_path,
+            "mask_path": join(mask_root, f"{track_name}"),
+        }
 
     def read_images(self):
-        print('reading images...')
-        img_path = self.paths['image_path']
-        image_paths = sorted(glob(join(img_path, '*.jpg')))
+        print("reading images...")
+        img_path = self.paths["image_path"]
+        image_paths = sorted(glob(join(img_path, "*.jpg")))
         if len(image_paths) == 0:
-            image_paths = sorted(glob(join(img_path, '*.png')))
-        image_paths = image_paths[::self.opt.image_sequence_stride]
-        image_paths = image_paths[:self.opt.frame_cap]
+            image_paths = sorted(glob(join(img_path, "*.png")))
+        image_paths = image_paths[:: self.opt.image_sequence_stride]
+        image_paths = image_paths[: self.opt.frame_cap]
         self.images = []
         self.images_orig = []
         for img_path in tqdm(image_paths):
-            img_raw = np.asarray(Image.open(
-                img_path).convert('RGB')).astype(np.float)/255
-            if not hasattr(self, 'original_shape'):
+            img_raw = (
+                np.asarray(Image.open(img_path).convert("RGB")).astype(np.float) / 255
+            )
+            if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
                 H_output, W_output = self.get_output_shape(
-                    multiple=64, max_width=self.opt.max_width)
+                    multiple=64, max_width=self.opt.max_width
+                )
                 self.output_shape = (H_output, W_output)
                 H_opt, W_opt = self.get_output_shape(
-                    multiple=32, max_width=self.opt.max_width_opt)
+                    multiple=32, max_width=self.opt.max_width_opt
+                )
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt),
-                           preserve_range=True).astype(np.float)
-            img_orig = imresize(img_raw, (H_output, W_output),
-                                preserve_range=True).astype(np.float)
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
+                np.float
+            )
+            img_orig = imresize(
+                img_raw, (H_output, W_output), preserve_range=True
+            ).astype(np.float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
         self.images = np.stack(self.images, axis=0)
-        self.images = torch.from_numpy(self.images).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images = (
+            torch.from_numpy(self.images).permute([0, 3, 1, 2]).float().pin_memory()
+        )
         self.images_orig = np.stack(self.images_orig, axis=0)
-        self.images_orig = torch.from_numpy(self.images_orig).permute(
-            [0, 3, 1, 2]).float().pin_memory()
-        self.masks = torch.ones(
-            [self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        self.images_orig = (
+            torch.from_numpy(self.images_orig)
+            .permute([0, 3, 1, 2])
+            .float()
+            .pin_memory()
+        )
+        self.masks = (
+            torch.ones([self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        )
 
-        print('done.')
+        print("done.")
 
     def read_intrinsics(self):
         pass
@@ -703,22 +791,25 @@ class DavisVideoDataset(DepthVideoDataset):
         if self.opt.not_load_mask:
             return
         else:
-            print('reading gt info...')
+            print("reading gt info...")
             self.masks = []
-            mask_paths = sorted(glob(join(self.paths['mask_path'], '*.png')))
-            mask_paths = mask_paths[::self.opt.image_sequence_stride]
+            mask_paths = sorted(glob(join(self.paths["mask_path"], "*.png")))
+            mask_paths = mask_paths[:: self.opt.image_sequence_stride]
             for mask_path in mask_paths:
-                mask = np.asarray(Image.open(
-                    mask_path).convert('L')).astype(np.float)/255
-                mask = imresize(mask, self.opt_shape,
-                                preserve_range=True).astype(np.float)
+                mask = (
+                    np.asarray(Image.open(mask_path).convert("L")).astype(np.float)
+                    / 255
+                )
+                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(
+                    np.float
+                )
                 mask = np.where(mask > 0.001, 1, 0)
-                mask = 1-mask
+                mask = 1 - mask
                 mask = torch.from_numpy(mask[None, ...]).float().pin_memory()
                 self.masks.append(mask)
             self.masks = np.stack(self.masks, axis=0)
             self.masks = torch.from_numpy(self.masks).float().pin_memory()
-            print('done.')
+            print("done.")
         # print('reading gt info')
         # depth_and_pose_path = self.paths['depth_and_pose_paths']
         # self.R_gt = []
@@ -752,52 +843,68 @@ class TUMVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        data_list_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/TUM/raw_data"
+        data_list_root = (
+            "/data/vision/billf/scratch/ztzhang/data/layered-video/TUM/raw_data"
+        )
         image_path = join(
-            data_list_root, f'{track_name}', f'rgb_{opt.image_sequence_stride}', 'image_float_tensor.npy')
-        self.paths = {'image_path': image_path}
+            data_list_root,
+            f"{track_name}",
+            f"rgb_{opt.image_sequence_stride}",
+            "image_float_tensor.npy",
+        )
+        self.paths = {"image_path": image_path}
 
     def read_images(self):
-        print('reading images...')
-        img_path = self.paths['image_path']
-        self.images_raw = np.load(img_path).astype(np.float)/255
+        print("reading images...")
+        img_path = self.paths["image_path"]
+        self.images_raw = np.load(img_path).astype(np.float) / 255
         if self.opt.frame_cap is not None:
-            self.images_raw = self.images_raw[:self.opt.frame_cap, ...]
-        if self.opt.track_name == 'soup_can':
+            self.images_raw = self.images_raw[: self.opt.frame_cap, ...]
+        if self.opt.track_name == "soup_can":
             self.images_raw = np.transpose(self.images_raw, [0, 2, 1, 3])
         self.images = []
         self.images_orig = []
         for image_id in tqdm(range(self.images_raw.shape[0])):
             img_raw = self.images_raw[image_id]
-            if not hasattr(self, 'original_shape'):
+            if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
                 H_output, W_output = self.get_output_shape(
-                    multiple=64, max_width=self.opt.max_width)
+                    multiple=64, max_width=self.opt.max_width
+                )
                 self.output_shape = (H_output, W_output)
                 H_opt, W_opt = self.get_output_shape(
-                    multiple=32, max_width=self.opt.max_width_opt)
+                    multiple=32, max_width=self.opt.max_width_opt
+                )
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt),
-                           preserve_range=True).astype(np.float)
-            img_orig = imresize(img_raw, (H_output, W_output),
-                                preserve_range=True).astype(np.float)
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
+                np.float
+            )
+            img_orig = imresize(
+                img_raw, (H_output, W_output), preserve_range=True
+            ).astype(np.float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
         self.images = np.stack(self.images, axis=0)
-        self.images = torch.from_numpy(self.images).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images = (
+            torch.from_numpy(self.images).permute([0, 3, 1, 2]).float().pin_memory()
+        )
         self.images_orig = np.stack(self.images_orig, axis=0)
-        self.images_orig = torch.from_numpy(self.images_orig).permute(
-            [0, 3, 1, 2]).float().pin_memory()
-        self.masks = torch.ones(
-            [self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
-        print('done.')
+        self.images_orig = (
+            torch.from_numpy(self.images_orig)
+            .permute([0, 3, 1, 2])
+            .float()
+            .pin_memory()
+        )
+        self.masks = (
+            torch.ones([self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        )
+        print("done.")
 
     def read_intrinsics(self):
-        print('reading intrinsics....')
+        print("reading intrinsics....")
         self.K = np.eye(3)
         fx, fy, cx, cy = [535.4, 539.2, 320.1, 247.6]
         self.K[0, 0] = fx
@@ -808,9 +915,9 @@ class TUMVideoDataset(DepthVideoDataset):
         # self.K = np.load(self.paths['depth_and_pose_paths'][0])['K']
         H_original, W_original = self.original_shape
         H, W = self.opt_shape
-        self.K[0, :] /= W_original/W
-        self.K[1, :] /= H_original/H
-        print('intrinsics loaded:')
+        self.K[0, :] /= W_original / W
+        self.K[1, :] /= H_original / H
+        print("intrinsics loaded:")
         print(self.K)
         self.K = torch.from_numpy(self.K[None, ...]).float().pin_memory()
 
@@ -826,67 +933,84 @@ class StaticTUMVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        data_list_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/TUM_static/raw_data"
+        data_list_root = (
+            "/data/vision/billf/scratch/ztzhang/data/layered-video/TUM_static/raw_data"
+        )
         image_path = join(
-            data_list_root, f'{track_name}', f'rgb_{opt.image_sequence_stride}', 'image_float_tensor.npy')
-        self.paths = {'image_path': image_path}
+            data_list_root,
+            f"{track_name}",
+            f"rgb_{opt.image_sequence_stride}",
+            "image_float_tensor.npy",
+        )
+        self.paths = {"image_path": image_path}
 
     def read_images(self):
-        print('reading images...')
-        img_path = self.paths['image_path']
-        self.images_raw = np.load(img_path).astype(np.float)/255
+        print("reading images...")
+        img_path = self.paths["image_path"]
+        self.images_raw = np.load(img_path).astype(np.float) / 255
         # need to crop out the border
         self.images_raw = self.images_raw[:, 16:-16, 32:-32, :]
         if self.opt.frame_cap is not None:
-            self.images_raw = self.images_raw[:self.opt.frame_cap, ...]
+            self.images_raw = self.images_raw[: self.opt.frame_cap, ...]
         self.images = []
         self.images_orig = []
         for image_id in tqdm(range(self.images_raw.shape[0])):
             img_raw = self.images_raw[image_id]
-            if not hasattr(self, 'original_shape'):
+            if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
                 H_output, W_output = self.get_output_shape(
-                    multiple=64, max_width=self.opt.max_width)
+                    multiple=64, max_width=self.opt.max_width
+                )
                 self.output_shape = (H_output, W_output)
                 H_opt, W_opt = self.get_output_shape(
-                    multiple=32, max_width=self.opt.max_width_opt)
+                    multiple=32, max_width=self.opt.max_width_opt
+                )
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt),
-                           preserve_range=True).astype(np.float)
-            img_orig = imresize(img_raw, (H_output, W_output),
-                                preserve_range=True).astype(np.float)
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
+                np.float
+            )
+            img_orig = imresize(
+                img_raw, (H_output, W_output), preserve_range=True
+            ).astype(np.float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
         self.images = np.stack(self.images, axis=0)
-        self.images = torch.from_numpy(self.images).permute(
-            [0, 3, 1, 2]).float().pin_memory()
+        self.images = (
+            torch.from_numpy(self.images).permute([0, 3, 1, 2]).float().pin_memory()
+        )
         self.images_orig = np.stack(self.images_orig, axis=0)
-        self.images_orig = torch.from_numpy(self.images_orig).permute(
-            [0, 3, 1, 2]).float().pin_memory()
-        self.masks = torch.ones(
-            [self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
-        print('done.')
+        self.images_orig = (
+            torch.from_numpy(self.images_orig)
+            .permute([0, 3, 1, 2])
+            .float()
+            .pin_memory()
+        )
+        self.masks = (
+            torch.ones([self.number_of_frames, 1, H_opt, W_opt]).float().pin_memory()
+        )
+        print("done.")
 
     def read_intrinsics(self):
-        print('reading intrinsics....')
+        print("reading intrinsics....")
         self.K = np.eye(3)
         fx, fy, cx, cy = [517.3, 516.5, 318.6, 255.3]
         self.K[0, 0] = fx
         self.K[1, 1] = fy
-        self.K[0, 2] = cx-32
-        self.K[1, 2] = cy-16
+        self.K[0, 2] = cx - 32
+        self.K[1, 2] = cy - 16
         H_original, W_original = self.original_shape
         H, W = self.opt_shape
-        self.K[0, :] /= W_original/W
-        self.K[1, :] /= H_original/H
-        print('intrinsics loaded:')
+        self.K[0, :] /= W_original / W
+        self.K[1, :] /= H_original / H
+        print("intrinsics loaded:")
         print(self.K)
         self.K = torch.from_numpy(self.K[None, ...]).float().pin_memory()
 
     def read_gt_info(self):
         pass
+
 
 # %%
