@@ -513,23 +513,21 @@ class SintelVideoDataset(DepthVideoDataset):
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img, (H_opt, W_opt), preserve_range=True).astype(np.float)
+            img = imresize(img, (H_opt, W_opt), preserve_range=True).astype(float)
             img_orig = imresize(img, (H_output, W_output), preserve_range=True).astype(
-                np.float
+                float
             )
             self.images.append(img)
             self.images_orig.append(img_orig)
         for i in range(1, self.number_of_frames + 1):
             if self.opt.not_load_mask:
-                seg = np.ones([H_opt, W_opt], dtype=np.float)
+                seg = np.ones([H_opt, W_opt], dtype=float)
             else:
                 seg = util_sintel_io.seg_read(
                     join(self.paths["seg"], f"frame_{i:04d}.png")
                 )
                 seg = 1 - seg
-                seg = imresize(seg, (H_opt, W_opt), preserve_range=True).astype(
-                    np.float
-                )
+                seg = imresize(seg, (H_opt, W_opt), preserve_range=True).astype(float)
                 seg = np.where(seg > 0.99, 1, 0)
             self.masks.append(seg[None, ...])
         self.images = np.stack(self.images, axis=0)
@@ -571,7 +569,7 @@ class SintelVideoDataset(DepthVideoDataset):
                 join(self.paths["depth"], f"frame_{i:04d}.dpt")
             )
             depth = imresize(depth, (H_output, W_output), preserve_range=True).astype(
-                np.float
+                float
             )
             self.depth_gt.append(depth)
         for i in range(1, self.number_of_frames + 1):
@@ -622,7 +620,7 @@ class DavisLocalVideoDataset(DepthVideoDataset):
         self.images_orig = []
         for img_path in tqdm(image_paths):
             img_raw = (
-                np.asarray(Image.open(img_path).convert("RGB")).astype(np.float) / 255
+                np.asarray(Image.open(img_path).convert("RGB")).astype(float) / 255
             )
             if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
@@ -636,12 +634,10 @@ class DavisLocalVideoDataset(DepthVideoDataset):
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
-                np.float
-            )
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(float)
             img_orig = imresize(
                 img_raw, (H_output, W_output), preserve_range=True
-            ).astype(np.float)
+            ).astype(float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
@@ -675,12 +671,9 @@ class DavisLocalVideoDataset(DepthVideoDataset):
             mask_paths = mask_paths[:: self.opt.image_sequence_stride]
             for mask_path in mask_paths:
                 mask = (
-                    np.asarray(Image.open(mask_path).convert("L")).astype(np.float)
-                    / 255
+                    np.asarray(Image.open(mask_path).convert("L")).astype(float) / 255
                 )
-                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(
-                    np.float
-                )
+                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(float)
                 mask = np.where(mask > 0.001, 1, 0)
                 mask = 1 - mask
                 mask = torch.from_numpy(mask[None, ...]).float().pin_memory()
@@ -747,7 +740,7 @@ class DavisVideoDataset(DepthVideoDataset):
         self.images_orig = []
         for img_path in tqdm(image_paths):
             img_raw = (
-                np.asarray(Image.open(img_path).convert("RGB")).astype(np.float) / 255
+                np.asarray(Image.open(img_path).convert("RGB")).astype(float) / 255
             )
             if not hasattr(self, "original_shape"):
                 self.original_shape = img_raw.shape[:2]
@@ -761,12 +754,10 @@ class DavisVideoDataset(DepthVideoDataset):
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
-                np.float
-            )
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(float)
             img_orig = imresize(
                 img_raw, (H_output, W_output), preserve_range=True
-            ).astype(np.float)
+            ).astype(float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
@@ -800,12 +791,9 @@ class DavisVideoDataset(DepthVideoDataset):
             mask_paths = mask_paths[:: self.opt.image_sequence_stride]
             for mask_path in mask_paths:
                 mask = (
-                    np.asarray(Image.open(mask_path).convert("L")).astype(np.float)
-                    / 255
+                    np.asarray(Image.open(mask_path).convert("L")).astype(float) / 255
                 )
-                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(
-                    np.float
-                )
+                mask = imresize(mask, self.opt_shape, preserve_range=True).astype(float)
                 mask = np.where(mask > 0.001, 1, 0)
                 mask = 1 - mask
                 mask = torch.from_numpy(mask[None, ...]).float().pin_memory()
@@ -860,7 +848,7 @@ class TUMVideoDataset(DepthVideoDataset):
     def read_images(self):
         print("reading images...")
         img_path = self.paths["image_path"]
-        self.images_raw = np.load(img_path).astype(np.float) / 255
+        self.images_raw = np.load(img_path).astype(float) / 255
         if self.opt.frame_cap is not None:
             self.images_raw = self.images_raw[: self.opt.frame_cap, ...]
         if self.opt.track_name == "soup_can":
@@ -881,12 +869,10 @@ class TUMVideoDataset(DepthVideoDataset):
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
-                np.float
-            )
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(float)
             img_orig = imresize(
                 img_raw, (H_output, W_output), preserve_range=True
-            ).astype(np.float)
+            ).astype(float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
@@ -950,7 +936,7 @@ class StaticTUMVideoDataset(DepthVideoDataset):
     def read_images(self):
         print("reading images...")
         img_path = self.paths["image_path"]
-        self.images_raw = np.load(img_path).astype(np.float) / 255
+        self.images_raw = np.load(img_path).astype(float) / 255
         # need to crop out the border
         self.images_raw = self.images_raw[:, 16:-16, 32:-32, :]
         if self.opt.frame_cap is not None:
@@ -971,12 +957,10 @@ class StaticTUMVideoDataset(DepthVideoDataset):
                 self.opt_shape = (H_opt, W_opt)
             H_output, W_output = self.output_shape
             H_opt, W_opt = self.opt_shape
-            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(
-                np.float
-            )
+            img = imresize(img_raw, (H_opt, W_opt), preserve_range=True).astype(float)
             img_orig = imresize(
                 img_raw, (H_output, W_output), preserve_range=True
-            ).astype(np.float)
+            ).astype(float)
             self.images.append(img.copy())
             self.images_orig.append(img_orig.copy())
         self.number_of_frames = len(self.images)
