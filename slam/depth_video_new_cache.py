@@ -724,8 +724,10 @@ class DavisVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        data_list_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/JPEGImages/480p"
-        mask_root = "/data/vision/billf/scratch/ztzhang/data/layered-video/DAVIS/Annotations/480p"
+        data_list_root = (
+            "/nfshomes/zguo47/videosfm/datasets/davis/DAVIS/JPEGImages/480p"
+        )
+        mask_root = "/nfshomes/zguo47/videosfm/datasets/davis/DAVIS/Annotations_unsupervised/480p"
         image_path = join(data_list_root, f"{track_name}")
         self.paths = {
             "image_path": image_path,
