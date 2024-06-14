@@ -33,9 +33,7 @@ def resize_flow(flow, size):
 
 def get_path(track_name="alley_2"):
     if os.path.exists("/nfshomes/zguo47/videosfm/datasets/sintel/"):
-        data_pattern = (
-            "/nfshomes/zguo47/videosfm/datasets/sintel/training/final/{track_name}"
-        )
+        data_pattern = "/nfshomes/zguo47/videosfm/datasets/sintel/training/final/{{mode}}/{track_name}"
     else:
         data_pattern = sintel_data_pattern
     sintel_path = data_pattern.format(track_name=track_name)
