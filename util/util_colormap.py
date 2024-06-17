@@ -267,36 +267,37 @@ turbo_colormap_data = [
 turbo_colormap_data_np = np.array(turbo_colormap_data)
 
 
-# def heatmap_to_pseudo_color(heatmap):
-#     x = heatmap
-#     x = x.clip(0, 1)
-#     a = (x * 255).astype(int)
-#     b = (a + 1).clip(max=255)
-#     f = x * 255.0 - a
-#     pseudo_color = (
-#         turbo_colormap_data_np[a] + (turbo_colormap_data_np[b] - turbo_colormap_data_np[a]) * f[..., None]
-#     )
-#     pseudo_color[heatmap < 0.0] = 0.0
-#     pseudo_color[heatmap > 1.0] = 1.0
-#     return pseudo_color
-
-
 def heatmap_to_pseudo_color(heatmap):
-    # Clip heatmap to be within the range of 0 to 1
-    clipped_heatmap = np.clip(heatmap, 0, 1)
-
-    # Use Matplotlib's colormap
-    colormap = plt.get_cmap("magma")
-
-    # Apply the colormap to the heatmap
-    pseudo_color = colormap(clipped_heatmap)
-
-    # Convert the RGBA color from colormap to 0-1 range if necessary
-    pseudo_color = (pseudo_color * 255).astype(
-        np.uint8
-    )  # Optional: Convert to uint8 if needed for further processing
-
+    x = heatmap
+    x = x.clip(0, 1)
+    a = (x * 255).astype(int)
+    b = (a + 1).clip(max=255)
+    f = x * 255.0 - a
+    pseudo_color = (
+        turbo_colormap_data_np[a]
+        + (turbo_colormap_data_np[b] - turbo_colormap_data_np[a]) * f[..., None]
+    )
+    pseudo_color[heatmap < 0.0] = 0.0
+    pseudo_color[heatmap > 1.0] = 1.0
     return pseudo_color
+
+
+# def heatmap_to_pseudo_color(heatmap):
+#     # Clip heatmap to be within the range of 0 to 1
+#     clipped_heatmap = np.clip(heatmap, 0, 1)
+
+#     # Use Matplotlib's colormap
+#     colormap = plt.get_cmap("magma")
+
+#     # Apply the colormap to the heatmap
+#     pseudo_color = colormap(clipped_heatmap)
+
+#     # Convert the RGBA color from colormap to 0-1 range if necessary
+#     pseudo_color = (pseudo_color * 255).astype(
+#         np.uint8
+#     )  # Optional: Convert to uint8 if needed for further processing
+
+#     return pseudo_color
 
 
 # The look-up table contains 256 entries. Each entry is a floating point sRGB triplet.
