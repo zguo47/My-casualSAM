@@ -730,7 +730,6 @@ class DavisVideoDataset(DepthVideoDataset):
     def read_images(self):
         print("reading images...")
         img_path = self.paths["image_path"]
-        print(img_path)
         image_paths = sorted(glob(join(img_path, "*.jpg")))
         if len(image_paths) == 0:
             image_paths = sorted(glob(join(img_path, "*.png")))
