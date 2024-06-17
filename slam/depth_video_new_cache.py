@@ -465,7 +465,7 @@ class SintelVideoDataset(DepthVideoDataset):
         self.initialize(opt)
 
     def get_paths(self, opt):
-        track_names = opt.track_names
+        track_name = opt.track_name
         self.paths = {}
         (
             sintel_cam_path,
@@ -474,7 +474,7 @@ class SintelVideoDataset(DepthVideoDataset):
             sintel_seg_path,
             sintel_img_path,
             number_of_frames,
-        ) = util_sintel_io.get_path(track_name=track_names)
+        ) = util_sintel_io.get_path(track_name=track_name)
         self.paths["cam"] = sintel_cam_path
         self.paths["depth"] = sintel_depth_path
         self.paths["seg"] = sintel_seg_path

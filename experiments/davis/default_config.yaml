@@ -1,4 +1,4 @@
-dataset_name: 'sintel'
+dataset_name: 'davis'
 log_dir: './experiment_logs'
 track_name : 'ambush_2'
 buffer_size : 5
