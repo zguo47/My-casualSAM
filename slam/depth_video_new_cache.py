@@ -499,6 +499,7 @@ class SintelVideoDataset(DepthVideoDataset):
         self.masks = []
         if self.opt.frame_cap is not None:
             self.number_of_frames = min(self.opt.frame_cap, self.number_of_frames)
+        print(self.paths)
         for i in range(1, self.number_of_frames + 1, self.opt.image_sequence_stride):
             img = util_sintel_io.img_read(join(self.paths["img"], f"frame_{i:04d}.png"))
             if not hasattr(self, "original_shape"):
