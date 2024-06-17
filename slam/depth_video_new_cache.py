@@ -718,7 +718,7 @@ class DavisVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        print(track_name)
+        print(opt)
         data_list_root = "/fs/nexus-projects/video-depth-pose/videosfm/datasets/davis/DAVIS/JPEGImages/480p"
         mask_root = "/fs/nexus-projects/video-depth-pose/videosfm/datasets/davis/DAVIS/Annotations_unsupervised/480p"
         image_path = join(data_list_root, f"{track_name}")
