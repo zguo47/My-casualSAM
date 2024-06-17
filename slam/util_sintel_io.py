@@ -31,7 +31,7 @@ def resize_flow(flow, size):
     return resized
 
 
-def get_path(track_name="ambush_2"):
+def get_path(track_name):
     if os.path.exists("/fs/nexus-projects/video-depth-pose/videosfm/datasets/sintel/"):
         data_pattern = "/fs/nexus-projects/video-depth-pose/videosfm/datasets/sintel/training/{{mode}}/{track_name}"
     else:

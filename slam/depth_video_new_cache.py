@@ -465,7 +465,7 @@ class SintelVideoDataset(DepthVideoDataset):
         self.initialize(opt)
 
     def get_paths(self, opt):
-        track_name = opt.track_name
+        track_names = opt.track_names
         self.paths = {}
         (
             sintel_cam_path,
@@ -474,7 +474,7 @@ class SintelVideoDataset(DepthVideoDataset):
             sintel_seg_path,
             sintel_img_path,
             number_of_frames,
-        ) = util_sintel_io.get_path(track_name=track_name)
+        ) = util_sintel_io.get_path(track_name=track_names)
         self.paths["cam"] = sintel_cam_path
         self.paths["depth"] = sintel_depth_path
         self.paths["seg"] = sintel_seg_path
@@ -718,10 +718,8 @@ class DavisVideoDataset(DepthVideoDataset):
 
     def get_paths(self, opt):
         track_name = opt.track_name
-        data_list_root = (
-            "/nfshomes/zguo47/videosfm/datasets/davis/DAVIS/JPEGImages/480p"
-        )
-        mask_root = "/nfshomes/zguo47/videosfm/datasets/davis/DAVIS/Annotations_unsupervised/480p"
+        data_list_root = "/fs/nexus-projects/video-depth-pose/videosfm/datasets/davis/DAVIS/JPEGImages/480p"
+        mask_root = "/fs/nexus-projects/video-depth-pose/videosfm/datasets/davis/DAVIS/Annotations_unsupervised/480p"
         image_path = join(data_list_root, f"{track_name}")
         self.paths = {
             "image_path": image_path,
