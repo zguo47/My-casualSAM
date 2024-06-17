@@ -41,7 +41,7 @@ def get_path(track_name="ambush_2"):
     sintel_depth_path = sintel_path.format(mode="depth")
     sintel_flow_path = sintel_path.format(mode="flow")
     sintel_seg_path = sintel_seg_pattern.format(track_name=track_name)
-    sintel_img_path = sintel_path.format(mode="clean_left")
+    sintel_img_path = sintel_path.format(mode="final")
     number_of_frames = len(sorted(glob(join(sintel_img_path, "*"))))
     return (
         sintel_cam_path,
